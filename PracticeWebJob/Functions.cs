@@ -9,7 +9,7 @@ namespace PracticeWebJob
         // on an Azure Queue called queue.
         public static void ProcessQueueMessage([QueueTrigger("queue")] string message, ILogger logger)
         {
-            logger.LogInformation($"Processed queue message 5/18/2026 12:15PM: {message}");
+            logger.LogInformation($"Processed queue message 5/18/2026 12:26PM: {message}");
         }
     }
 }
