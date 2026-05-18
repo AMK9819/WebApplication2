@@ -7,9 +7,9 @@ namespace PracticeWebJob
     {
         // This function will get triggered/executed when a new message is written 
         // on an Azure Queue called queue.
-        public static void ProcessQueueMessage([QueueTrigger("queue")] string message, ILogger logger)
+        public static void ProcessQueueMessage([QueueTrigger("testq")] string message, ILogger logger)
         {
-            logger.LogInformation($"Processed queue message 5/18/2026 12:47PM: {message}");
+            logger.LogInformation($"Processed queue message 5/18/2026 1:14PM: {message}");
         }
     }
 }
