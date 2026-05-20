@@ -55,10 +55,13 @@ jobs:
           subscription-id: ${{
             secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F
             }}
+      - name: Zip publish folder
+        shell: pwsh
+        run: Compress-Archive -Path * -DestinationPath deploy.zip
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: CSharpWebApp
           slot-name: Production
-          package: .
+          package: deploy.zip
