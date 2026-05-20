@@ -33,12 +33,12 @@ jobs:
 
       # Step 3: Publish WebJob directly into the newly created "publish/App_Data" folder
        - name: Publish WebJob alongside Web App
-          run: |
+         run: |
             dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o "publish/App_Data/jobs/continuous/PracticeWebJob"
             
        - name: Verify publish structure
-          shell: pwsh
-          run: Get-ChildItem -Recurse "publish" | Select-Object FullName
+         shell: pwsh
+         run: Get-ChildItem -Recurse "publish" | Select-Object FullName
 
       # Step 4: Zip up that exact "publish" folder as your artifact
        - uses: actions/upload-artifact@v4
