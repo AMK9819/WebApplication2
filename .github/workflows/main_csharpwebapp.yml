@@ -19,7 +19,7 @@ jobs:
       - name: Build with dotnet
         run: dotnet build --configuration Release
       - name: dotnet publish Web App
-        run: dotnet publish "YourWebApp/YourWebApp.csproj" -c Release -o "publish"
+        run: dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o "publish"
       - name: Publish WebJob alongside Web App
         run: >
           dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o
