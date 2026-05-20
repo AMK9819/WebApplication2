@@ -26,14 +26,14 @@ jobs:
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
-        - name: dotnet publish Web App
+      - name: dotnet publish Web App
         run: dotnet publish -c Release -o "publish"
 
-        - name: Publish WebJob alongside Web App
+      - name: Publish WebJob alongside Web App
         run: |
           dotnet publish -c Release -o "${{ github.workspace }}/publish/App_Data/jobs/continuous/MyWebJob"
 
-        - name: Upload artifact for deployment job
+      - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
