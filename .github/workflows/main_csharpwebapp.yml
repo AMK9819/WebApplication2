@@ -32,6 +32,9 @@ jobs:
           name: .net-app
           path: publish
   deploy:
+    permissions:
+        id-token: write
+        contents: read
       runs-on: windows-latest
       needs: build
       steps:
