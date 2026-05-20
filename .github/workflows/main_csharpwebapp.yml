@@ -23,22 +23,25 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      # Step 1: Clean build of everything in the repository
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
+      # Step 2: Publish Web App to a relative "publish" folder in your workspace
       - name: dotnet publish Web App
         run: dotnet publish -c Release -o "publish"
 
+      # Step 3: Publish WebJob directly into the newly created "publish/App_Data" folder
       - name: Publish WebJob alongside Web App
         run: |
-          dotnet publish -c Release -o "${{ github.workspace }}/publish/App_Data/jobs/continuous/MyWebJob"
+          dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o "publish/App_Data/jobs/continuous/PracticeWebJob"
 
+      # Step 4: Zip up that exact "publish" folder as your artifact
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
           path: publish
-
   deploy:
     runs-on: windows-latest
     needs: build
@@ -65,6 +68,5 @@ jobs:
         with:
           app-name: 'CSharpWebApp'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ${{ github.workspace }}/publish
+          package: .
           
