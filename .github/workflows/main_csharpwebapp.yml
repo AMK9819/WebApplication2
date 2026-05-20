@@ -19,10 +19,9 @@ jobs:
       - name: Build with dotnet
         run: dotnet build --configuration Release
       - name: dotnet publish Web App
-        run: dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o "publish"
+        run: dotnet publish "CSharpWebApp/CSharpWebApp.csproj" -c Release -o "publish"
       - name: Publish WebJob alongside Web App
-        run: >
-          dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o
+        run: dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o
           "publish/App_Data/jobs/continuous/PracticeWebJob"
       - name: Verify publish structure
         shell: pwsh
