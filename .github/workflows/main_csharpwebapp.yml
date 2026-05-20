@@ -32,7 +32,7 @@ jobs:
       # --- NEW STEP TO INTEGRATE WEBJOB BUILDING ---
       - name: Publish WebJob alongside Web App
         run: |
-          dotnet publish "WebApplication2/PracticeWebJob/PracticeWebJob.csproj" -c Release -o "${{env.DOTNET_ROOT}}/myapp/App_Data/jobs/triggered/MyWebJobName"
+          dotnet publish "WebApplication2/WebApplication2/PracticeWebJob/PracticeWebJob.csproj" -c Release -o "${{env.DOTNET_ROOT}}/myapp/App_Data/jobs/triggered/MyWebJobName"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
