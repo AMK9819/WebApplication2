@@ -1,74 +1,70 @@
----
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
 name: Build and deploy ASP.Net Core app to Azure Web App - CSharpWebApp
+
 on:
   push:
     branches:
       - main
-  workflow_dispatch: null
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: read #This is required for actions/checkout
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.x
+          dotnet-version: '10.x'
+
       - name: Build with dotnet
         run: dotnet build --configuration Release
-      - name: dotnet publish Web App
-        run: dotnet publish "WebApplication2/WebApplication2.csproj" -c Release -o
-          "publish"
+
+      - name: dotnet publish
+        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        
+      # --- NEW STEP TO INTEGRATE WEBJOB BUILDING ---
       - name: Publish WebJob alongside Web App
-        run: dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o
-          "publish/App_Data/jobs/continuous/PracticeWebJob"
-      - name: Verify publish structure
-        shell: pwsh
-        run: Get-ChildItem -Recurse "publish" | Select-Object FullName
-      - uses: actions/upload-artifact@v4
+        run: |
+          dotnet publish "WebApplication2/PracticeWebJob/PracticeWebJob.csproj" -c Release -o "${{env.DOTNET_ROOT}}/myapp/App_Data/jobs/triggered/MyWebJobName"
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: publish
+          path: ${{env.DOTNET_ROOT}}/myapp
+
   deploy:
-    permissions:
-        id-token: write
-        contents: read
     runs-on: windows-latest
     needs: build
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: .net-app
-      - name: Verify downloaded structure
-        shell: pwsh
-        run: Get-ChildItem -Recurse . | Select-Object FullName
-      - name: Zip publish folder
-        shell: pwsh
-        run: Compress-Archive -Path ".\*" -DestinationPath "deploy.zip"
-      - name: Verify zip contents
-        shell: pwsh
-        run: |
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = [System.IO.Compression.ZipFile]::OpenRead("deploy.zip")
-          $zip.Entries | Select-Object FullName
-          $zip.Dispose()
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_37451ADCF54A41C0ADEC80A7B61B2707
-            }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714
-            }}
-          subscription-id: ${{
-            secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F
-            }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_37451ADCF54A41C0ADEC80A7B61B2707 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F }}
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: CSharpWebApp
-          slot-name: Production
-          package: deploy.zip
+          app-name: 'CSharpWebApp'
+          slot-name: 'Production'
+          package: .
+          
