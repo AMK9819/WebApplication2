@@ -1,79 +1,59 @@
+---
 name: Build and deploy ASP.Net Core app + WebJob to Azure Web App - CSharpWebApp
-
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
+  workflow_dispatch: null
 jobs:
   build-and-deploy:
     runs-on: windows-latest
-
     permissions:
       id-token: write
       contents: read
-
     steps:
-      # Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # Install .NET SDK
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
-
-      #############################################
-      # Build entire solution
-      #############################################
+          dotnet-version: 10.x
       - name: Build solution
         run: dotnet build --configuration Release
-
-      #############################################
-      # Publish WebJob
-      #############################################
       - name: Publish WebJob
         run: |
           dotnet publish `
             ./PracticeWebJob/PracticeWebJob.csproj `
             -c Release `
             -o publish_output/App_Data/jobs/continuous/PracticeWebJob.csproj
-
-      #############################################
-      # Publish ASP.NET Core Web App
-      #############################################
       - name: Publish Web App
         run: |
           dotnet publish `
             ./WebApplication2/WebApplication2.csproj `
             -c Release `
             -o publish_output
-
-      #############################################
-      # Verify output structure (optional)
-      #############################################
       - name: Show publish output
         run: |
           tree publish_output /F
-
-      #############################################
-      # Login to Azure
-      #############################################
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_37451ADCF54A41C0ADEC80A7B61B2707 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F }}
-
-      #############################################
-      # Deploy Web App + WebJob together
-      #############################################
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_37451ADCF54A41C0ADEC80A7B61B2707
+            }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714
+            }}
+          subscription-id: ${{
+            secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F
+            }}
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'CSharpWebApp'
-          slot-name: 'Production'
+          app-name: CSharpWebApp
+          slot-name: Production
           package: publish_output
+      - name: Verify WebJob output exists
+        run: >
+          if (!(Test-Path "publish_output\App_Data\jobs\continuous\YoutubeWebJob")) {
+              echo "WebJob folder missing!"
+              exit 1
+          }
