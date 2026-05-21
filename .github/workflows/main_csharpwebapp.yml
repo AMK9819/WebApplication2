@@ -47,7 +47,7 @@ jobs:
       - name: Publish Web App
         run: |
           dotnet publish `
-            ./PATH_TO_WEBAPP/CSharpWebApp.csproj `
+            ./WebApplication2/WebApplication2.csproj `
             -c Release `
             -o publish_output
 
