@@ -1,4 +1,7 @@
-name: Build and Deploy ASP.NET Core App + WebJob to Azure
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy ASP.Net Core app to Azure Web App - CSharpWebApp
 
 on:
   push:
@@ -7,59 +10,44 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: windows-latest
     permissions:
-      id-token: write
-      contents: read
+      contents: read #This is required for actions/checkout
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up .NET
+      - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.x
+          dotnet-version: '10.x'
 
-      - name: Publish Web App
-        run: |
-          dotnet publish ./WebApplication2/WebApplication2.csproj `
-            --configuration Release `
-            --output publish_output
+      - name: Build with dotnet
+        run: dotnet build --configuration Release
 
-      - name: Publish WebJob into Web App output
-        run: |
-          dotnet publish ./PracticeWebJob/PracticeWebJob.csproj `
-            --configuration Release `
-            --output publish_output/App_Data/jobs/continuous/PracticeWebJob
+      - name: dotnet publish
+        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
 
-      - name: Verify combined output structure
-        run: |
-          if (-not (Test-Path "publish_output\WebApplication2.dll")) {
-            Write-Error "Web app output is missing — WebApplication2.dll not found"
-            exit 1
-          }
-          if (-not (Test-Path "publish_output\App_Data\jobs\continuous\PracticeWebJob\PracticeWebJob.exe")) {
-            Write-Error "WebJob output is missing — PracticeWebJob.exe not found"
-            exit 1
-          }
-          $files = Get-ChildItem publish_output -Recurse -File
-          $mb = [math]::Round((($files | Measure-Object Length -Sum).Sum) / 1MB, 2)
-          Write-Host "publish_output OK: $($files.Count) files, $mb MB"
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: .net-app
+          path: ${{env.DOTNET_ROOT}}/myapp
 
-      - name: Package publish output into a zip
-        run: |
-          if (Test-Path app.zip) { Remove-Item app.zip -Force }
-          Compress-Archive -Path publish_output\* -DestinationPath app.zip -Force
-          $zip = Get-Item app.zip
-          $mb = [math]::Round($zip.Length / 1MB, 2)
-          Write-Host "app.zip size: $mb MB"
-          if ($zip.Length -lt 100KB) {
-            Write-Error "app.zip is only $mb MB — package looks empty, aborting deploy"
-            exit 1
-          }
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
 
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: .net-app
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -67,9 +55,11 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F }}
 
-      - name: Deploy Web App and WebJob together
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: CSharpWebApp
-          slot-name: Production
-          package: app.zip
+          app-name: 'CSharpWebApp'
+          slot-name: 'Production'
+          package: .
+          
