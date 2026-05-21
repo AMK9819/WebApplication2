@@ -53,7 +53,7 @@ jobs:
           package: publish_output
       - name: Verify WebJob output exists
         run: >
-          if (!(Test-Path "publish_output\App_Data\jobs\continuous\YoutubeWebJob")) {
+          if (!(Test-Path "publish_output\App_Data\jobs\continuous\PracticeWebJob")) {
               echo "WebJob folder missing!"
               exit 1
           }
