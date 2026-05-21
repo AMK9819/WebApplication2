@@ -1,65 +1,58 @@
-name: Build and deploy ASP.Net Core app + WebJob to Azure Web App - CSharpWebApp
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: null
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
 
-jobs:
-  build-and-deploy:
-    runs-on: windows-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+trigger:
+- master
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.x
+pool:
+  vmImage: 'windows-latest'
 
-      - name: Build solution
-        run: dotnet build --configuration Release
+steps:
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration Release'
 
-      # ✅ Web App published first
-      - name: Publish Web App
-        run: |
-          dotnet publish `
-            ./WebApplication2/WebApplication2.csproj `
-            -c Release `
-            -o publish_output
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: '**/PracticeWebJob.csproj'
+    arguments: '--output $(Build.BinariesDirectory)/publish_output/App_Data/jobs/continuous/PracticeWebJob'
+    zipAfterPublish: false
+    modifyOutputPath: false
 
-      # ✅ WebJob published second, into correct folder name (not .csproj)
-      - name: Publish WebJob
-        run: |
-          dotnet publish `
-            ./PracticeWebJob/PracticeWebJob.csproj `
-            -c Release `
-            -o publish_output/App_Data/jobs/continuous/PracticeWebJob
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'publish'
+    publishWebProjects: true
+    arguments: '--output $(Build.BinariesDirectory)/publish_output'
+    zipAfterPublish: false
+    modifyOutputPath: false
 
-      - name: Show publish output
-        run: tree publish_output /F
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.BinariesDirectory)/publish_output'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    replaceExistingArchive: true
 
-      # ✅ Verify BEFORE deploying so bad builds are caught early
-      - name: Verify WebJob output exists
-        run: |
-          if (!(Test-Path "publish_output\App_Data\jobs\continuous\PracticeWebJob")) {
-            echo "WebJob folder missing!"
-            exit 1
-          }
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
 
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_37451ADCF54A41C0ADEC80A7B61B2707 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F }}
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: CSharpWebApp
-          slot-name: Production
-          package: publish_output
+- task: AzureRmWebAppDeployment@4
+  inputs:
+    ConnectionType: 'AzureRM'
+    azureSubscription: 'SID subscription (0151c365-f598-44d6-b4fd-e2b6e97cb2a7)'
+    appType: 'webApp'
+    WebAppName: 'CSharpWebApp'
+    packageForLinux: '$(Agent.BuildDirectory)/**/*.zip'
+    WebConfigParameters: '**/appsettings.json'
