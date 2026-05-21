@@ -37,7 +37,7 @@ jobs:
       - name: Publish WebJob
         run: |
           dotnet publish `
-            ./PracticeWebJob/PracticeWebJob.csproj
+            ./PracticeWebJob/PracticeWebJob.csproj `
             -c Release `
             -o publish_output/App_Data/jobs/continuous/PracticeWebJob.csproj
 
