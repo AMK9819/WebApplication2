@@ -26,8 +26,11 @@ jobs:
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+      - name: dotnet publish (web app)
+        run: dotnet publish WebApplication2/WebApplication2.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+
+      - name: dotnet publish (WebJob)
+        run: dotnet publish PracticeWebJob/PracticeWebJob.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp/App_Data/jobs/continuous/PracticeWebJob"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
