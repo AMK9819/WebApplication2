@@ -1,55 +1,48 @@
 name: Build and deploy ASP.Net Core app + WebJob to Azure Web App - CSharpWebApp
-
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  workflow_dispatch: null
 
 jobs:
   build-and-deploy:
     runs-on: windows-latest
-
     permissions:
       id-token: write
       contents: read
-
     steps:
-      # Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Setup .NET
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.x
 
-      # Build solution
       - name: Build solution
         run: dotnet build --configuration Release
 
-      ####################################################
-      # Publish WebJob (FIXED PATH)
-      ####################################################
-      - name: Publish WebJob
-        run: dotnet publish ./PracticeWebJob/PracticeWebJob.csproj -c Release -o publish_output/App_Data/jobs/continuous/PracticeWebJob
-
-      ####################################################
-      # Publish Web App
-      ####################################################
+      # ✅ Web App published first
       - name: Publish Web App
-        run: dotnet publish ./WebApplication2/WebApplication2.csproj -c Release -o publish_output
+        run: |
+          dotnet publish `
+            ./WebApplication2/WebApplication2.csproj `
+            -c Release `
+            -o publish_output
 
-      ####################################################
-      # Debug output (VERY IMPORTANT)
-      ####################################################
-      - name: Show publish output structure
-        run: dir publish_output /s
+      # ✅ WebJob published second, into correct folder name (not .csproj)
+      - name: Publish WebJob
+        run: |
+          dotnet publish `
+            ./PracticeWebJob/PracticeWebJob.csproj `
+            -c Release `
+            -o publish_output/App_Data/jobs/continuous/PracticeWebJob
 
-      ####################################################
-      # Verify WebJob exists
-      ####################################################
+      - name: Show publish output
+        run: tree publish_output /F
+
+      # ✅ Verify BEFORE deploying so bad builds are caught early
       - name: Verify WebJob output exists
         run: |
           if (!(Test-Path "publish_output\App_Data\jobs\continuous\PracticeWebJob")) {
@@ -57,12 +50,6 @@ jobs:
             exit 1
           }
 
-          echo "WebJob contents:"
-          dir publish_output\App_Data\jobs\continuous\PracticeWebJob
-
-      ####################################################
-      # Login to Azure
-      ####################################################
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -70,9 +57,6 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F }}
 
-      ####################################################
-      # Deploy EVERYTHING (WebApp + WebJob together)
-      ####################################################
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
