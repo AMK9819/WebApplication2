@@ -1,7 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy ASP.Net Core app to Azure Web App - CSharpWebApp
+name: Build and deploy ASP.Net Core app + WebJob to Azure Web App - CSharpWebApp
 
 on:
   push:
@@ -10,49 +7,60 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: windows-latest
+
     permissions:
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      # Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up .NET Core
+      # Install .NET SDK
+      - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
 
-      - name: Build with dotnet
+      #############################################
+      # Build entire solution
+      #############################################
+      - name: Build solution
         run: dotnet build --configuration Release
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
-        
-      # --- NEW STEP TO INTEGRATE WEBJOB BUILDING ---
-      - name: Publish WebJob alongside Web App
+      #############################################
+      # Publish WebJob
+      #############################################
+      - name: Publish WebJob
         run: |
-          dotnet publish "PracticeWebJob/PracticeWebJob.csproj" -c Release -o "${{env.DOTNET_ROOT}}/myapp/App_Data/jobs/triggered/MyWebJobName"
+          dotnet publish `
+            ./PATH_TO_WEBJOB/WebJobExample.WebJob.csproj `
+            -c Release `
+            -o publish_output/App_Data/jobs/continuous/YoutubeWebJob
 
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+      #############################################
+      # Publish ASP.NET Core Web App
+      #############################################
+      - name: Publish Web App
+        run: |
+          dotnet publish `
+            ./PATH_TO_WEBAPP/CSharpWebApp.csproj `
+            -c Release `
+            -o publish_output
 
-  deploy:
-    runs-on: windows-latest
-    needs: build
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      #############################################
+      # Verify output structure (optional)
+      #############################################
+      - name: Show publish output
+        run: |
+          tree publish_output /F
 
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: .net-app
-      
+      #############################################
+      # Login to Azure
+      #############################################
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -60,11 +68,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B743B99ADFB84864B5870A23DF1A3714 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_044363105A2B490490D9072DC24BD44F }}
 
+      #############################################
+      # Deploy Web App + WebJob together
+      #############################################
       - name: Deploy to Azure Web App
-        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'CSharpWebApp'
           slot-name: 'Production'
-          package: .
-          
+          package: publish_output
