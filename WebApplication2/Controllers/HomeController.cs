@@ -6,9 +6,20 @@ namespace WebApplication2.Controllers
 {
     public class HomeController : Controller
     {
-        public IActionResult Index()
+        private readonly IConfiguration _configuration;
+        public HomeController(IConfiguration configuration)
         {
-            return View();
+            _configuration = configuration;
+        }
+
+
+        public IActionResult Index()
+        {   // send custom env value in our config settings into view
+            var model = new IndexModel
+            {
+                CustomEnvValue =_configuration["CustomEnvSetting"] ?? "Not Set"
+            };
+            return View(model);
         }
 
         public IActionResult Privacy()

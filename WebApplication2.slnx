@@ -1,4 +1,9 @@
 <Solution>
+  <Configurations>
+    <BuildType Name="Beta" />
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
   <Project Path="PracticeWebJob/PracticeWebJob.csproj" />
   <Project Path="WebApplication2/WebApplication2.csproj" />
 </Solution>

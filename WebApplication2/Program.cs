@@ -1,4 +1,9 @@
 var builder = WebApplication.CreateBuilder(args);
+// builder load appsettings.json and environment vars
+builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddEnvironmentVariables();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();

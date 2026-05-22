@@ -6,6 +6,7 @@
     <IsWebJobProject>true</IsWebJobProject>
     <WebJobName>$(AssemblyName)</WebJobName>
     <WebJobType>Continuous</WebJobType>
+    <Configurations>Debug;Release;Beta</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

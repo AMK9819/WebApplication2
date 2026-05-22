@@ -1,4 +1,6 @@
-﻿@{
+﻿@model WebApplication2.Models.IndexModel
+
+@{
     ViewData["Title"] = "Home Page";
 }
 
@@ -6,4 +8,7 @@
     <h1 class="display-4">Hello Azure World!</h1>
     <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
     <h1 class="display-4">Goodbye Azure World!</h1>
+    <h2>The Custom Env Value is: @Model.CustomEnvValue</h2>
+
+
 </div>
