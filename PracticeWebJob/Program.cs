@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+
 namespace PracticeWebJob
 {
     // To learn more about Microsoft Azure WebJobs SDK, please see https://go.microsoft.com/fwlink/?linkid=2250384
@@ -22,6 +23,14 @@ namespace PracticeWebJob
                 {
                     b.SetMinimumLevel(LogLevel.Information);
                     b.AddConsole();
+
+
+
+                    string AppInsightsConnectionString = context.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+                    if (!string.IsNullOrEmpty(AppInsightsConnectionString))
+                    {   // add appinsights
+                        b.AddApplicationInsightsWebJobs(o => o.ConnectionString = AppInsightsConnectionString);
+                    }
                 });
 
 
