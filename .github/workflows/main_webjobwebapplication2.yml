@@ -1,36 +1,71 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy ASP.Net Core app to Azure Web App - WebJobWebApplication2
+name: Build and deploy ASP.Net Core app to Azure Web App
 
 on:
   push:
+    # Each branch listed here maps to an environment in the `setup` job below.
     branches:
       - main
+      - beta
+  # Manual runs: pick the target environment from a dropdown.
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - production
+          - beta
 
-#Next: How to Deploy to different environments
 jobs:
+  # Resolve which GitHub Environment this run targets.
+  # Branch -> environment mapping lives here; adding a new env is one line.
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.pick.outputs.environment }}
+    steps:
+      - id: pick
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            env="${{ inputs.environment }}"
+          else
+            case "${{ github.ref }}" in
+              refs/heads/main) env="production" ;;
+              refs/heads/beta) env="beta" ;;
+              *) echo "No environment mapped for ${{ github.ref }}" >&2; exit 1 ;;
+            esac
+          fi
+          echo "Resolved environment: $env"
+          echo "environment=$env" >> "$GITHUB_OUTPUT"
+
   build:
     runs-on: windows-latest
     permissions:
       contents: read #This is required for actions/checkout
 
     steps:
+        #checkout repo
       - uses: actions/checkout@v4
-
+        # setup dotnet version 10
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
 
+        # builds the whole solution in Release
       - name: Build with dotnet
         run: dotnet build --configuration Release
-
+        #publish the web app to DOTNET_ROOT/myapp (DOTNET_ROOT) is an env variable set automatically that points to .NET runtime/SDK
       - name: dotnet publish (web app)
         run: dotnet publish WebApplication2/WebApplication2.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp"
-
+        #publish webjob
       - name: dotnet publish (WebJob)
+        # continuous means to run nonstop
         run: dotnet publish PracticeWebJob/PracticeWebJob.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp/App_Data/jobs/continuous/PracticeWebJob"
 
       - name: Upload artifact for deployment job
@@ -41,29 +76,38 @@ jobs:
 
   deploy:
     runs-on: windows-latest
-    needs: build
+    needs: [setup, build]
+    # Scopes the job to a GitHub Environment, which swaps in that env's
+    # secrets and variables automatically. Adding a new target = create
+    # a new Environment in repo settings; no changes to this job needed.
+    environment: ${{ needs.setup.outputs.environment }}
     permissions:
       id-token: write #This is required for requesting the JWT
       contents: read #This is required for actions/checkout
 
+    #download dotnet app artifact and login to azure (Artifacts is a bundle of files one job uploads and another job can download later
+    # GitHub Actions jobs each run on a fresh isolated VM when the build job ends.
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: .net-app
-      
+
       - name: Login to Azure
+        # Secrets resolve from the GitHub Environment selected above.
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2C423B82E75241B89742F087A7D542E2 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E4764B119912426CAD7505924F9C7EB8 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_50A932A6CA8346F68F95CAFAB089B201 }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
+        #push package to whichever App Service the target environment points at
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'WebJobWebApplication2'
+          # App name comes from an Environment variable, not a hardcoded string.
+          app-name: ${{ vars.AZURE_APP_NAME }}
+          # slot is prod (every App Service has a default "Production" slot)
           slot-name: 'Production'
           package: .
-          
