@@ -1,6 +1,9 @@
 ﻿using Microsoft.Azure.WebJobs;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -14,6 +17,11 @@ namespace PracticeWebJob
         public static async Task Main(string[] args)
         {
             var builder = new HostBuilder()
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+                    config.AddEnvironmentVariables();
+                })
                 .ConfigureWebJobs(b =>
                 {
                     b.AddAzureStorageCoreServices()
@@ -37,7 +45,18 @@ namespace PracticeWebJob
             var host = builder.Build();
             using (host)
             {
+                var config = host.Services.GetService<IConfiguration>();
+
+                Console.WriteLine("*****************************************************************************************");
+                Console.WriteLine("Configurations Loaded:\n   Connection String: {0}\n   Storage: {1}\n   Insights: {2}\n   webjobq: {3} ",
+                    config.GetConnectionString("DefaultConnection"),
+                config["AzureWebJobsStorage"],
+                config["APPLICATIONINSIGHTS_CONNECTION_STRING"],
+                config["webjobq"]);
+                Console.WriteLine("*****************************************************************************************");
+
                 // The following code ensures that the WebJob will be running continuously
+
                 await host.RunAsync();
             }
         }
