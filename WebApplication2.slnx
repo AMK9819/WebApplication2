@@ -4,6 +4,9 @@
     <BuildType Name="Debug" />
     <BuildType Name="Release" />
   </Configurations>
+  <Project Path="FunctionApp1/FunctionApp1.csproj" Id="79cd6484-6cca-41a4-bcd5-32b69142e2f6">
+    <BuildType Solution="Beta|*" Project="Debug" />
+  </Project>
   <Project Path="PracticeWebJob/PracticeWebJob.csproj" />
   <Project Path="WebApplication2/WebApplication2.csproj" />
 </Solution>
