@@ -21,9 +21,11 @@ on:
         description: 'Target environment'
         required: true
         type: choice
+        # Listed beta first so it's the default — accidental clicks
+        # of "Run workflow" go to the non-critical environment.
         options:
-          - production
           - beta
+          - production
 
 # A workflow is made of one or more jobs. Each job runs on its own fresh VM.
 # Files don't persist between jobs unless you upload them as an artifact.

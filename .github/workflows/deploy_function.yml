@@ -1,0 +1,134 @@
+# Manual-only build & deploy for the Azure Function (FunctionApp1).
+# Intentionally has no `push:` trigger — only fires from the
+# "Run workflow" button in the Actions tab.
+
+name: Build and deploy Azure Function
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        # Listed beta first so it's the default — safer if someone
+        # clicks Run without changing the dropdown.
+        options:
+          - beta
+          - production
+
+jobs:
+
+  # -------------------------------------------------------------------------
+  # JOB 1: setup
+  # Same pattern as the web-app workflow, but simpler — this workflow is
+  # manual-only, so there's no branch-name mapping. We just pass through
+  # whatever the user selected in the dropdown.
+  # -------------------------------------------------------------------------
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.pick.outputs.environment }}
+    steps:
+      - id: pick
+        shell: bash
+        run: |
+          echo "Resolved environment: ${{ inputs.environment }}"
+          echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+
+  # -------------------------------------------------------------------------
+  # JOB 2: build
+  # Publishes the Function project to a folder and uploads it as an artifact
+  # for the deploy job. We only publish FunctionApp1 here — the web app and
+  # WebJob have their own workflow.
+  # -------------------------------------------------------------------------
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read # Needed by actions/checkout.
+
+    steps:
+        # 1. Pull the repo onto the runner.
+      - uses: actions/checkout@v4
+
+        # 2. Install BOTH .NET SDKs:
+        #    - 8.0.x because FunctionApp1.csproj targets net8.0 explicitly
+        #    - 10.x for consistency with the web app workflow
+        #    The 10 SDK can build net8 projects on its own, but installing
+        #    8.0 explicitly makes the intent clear and future-proofs against
+        #    SDK quirks.
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.x
+
+        # 3. Publish the Function project to a folder. "Publish" collects
+        #    the compiled DLLs plus every runtime dependency into a layout
+        #    that Functions-action knows how to deploy.
+        #    Release configuration = optimized build, same convention as
+        #    the web app workflow.
+      - name: dotnet publish (Function)
+        run: dotnet publish FunctionApp1/FunctionApp1.csproj -c Release -o "${{env.DOTNET_ROOT}}/function-app"
+
+        # 4. Zip up the publish folder and stash it as a workflow artifact.
+        #    The deploy job runs on a fresh VM and downloads this.
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-app
+          path: ${{env.DOTNET_ROOT}}/function-app
+
+  # -------------------------------------------------------------------------
+  # JOB 3: deploy
+  # Authenticates to Azure via the same OIDC flow as the web-app workflow,
+  # then pushes the published Function to the target Function App.
+  # -------------------------------------------------------------------------
+  deploy:
+    runs-on: windows-latest
+    needs: [setup, build]
+
+    # Same Environment scoping trick as the web-app workflow. The same
+    # `production` / `beta` Environments that hold the web-app secrets and
+    # variables also feed this job — we just read an additional variable
+    # `AZURE_FUNCTION_NAME` (defined per environment) for the target.
+    environment: ${{ needs.setup.outputs.environment }}
+
+    permissions:
+      id-token: write # Required to mint the GitHub OIDC token for Azure login.
+      contents: read
+
+    steps:
+      # 1. Download the published Function artifact onto this fresh VM.
+      #    Extracts into the current working directory.
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: function-app
+
+      # 2. Log in to Azure via OIDC. Reuses the same per-environment secrets
+      #    as the web-app workflow — no new federated credentials needed
+      #    because the credential trusts a GitHub Environment, not a
+      #    specific workflow file.
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # 3. Deploy to the Function App. Note this uses Azure/functions-action,
+      #    NOT azure/webapps-deploy — Functions have their own deploy action
+      #    that knows about Function-specific bits (host.json, function.json,
+      #    extension bundles, etc.).
+      #    - app-name comes from the Environment's vars.AZURE_FUNCTION_NAME
+      #      (production -> WebApplication2Functions,
+      #       beta -> WebApplication2FunctionsBeta — or whatever you named them).
+      #    - package "." = deploy everything in the current directory,
+      #      which is the artifact we just downloaded.
+      - name: Deploy to Azure Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.AZURE_FUNCTION_NAME }}
+          package: .
